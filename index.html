@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <link
+      rel="shortcut icon"
+      href="https://cdn-icons-png.freepik.com/256/6699/6699838.png?semt=ais_hybrid"
+      type="image/x-icon"
+    />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Эволюция Вселенной</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background-color: #000;
+        font-family: "Arial", sans-serif;
+        color: white;
+      }
+      canvas {
+        display: block;
+        background: radial-gradient(
+          ellipse at center,
+          #0a0e24 0%,
+          #000000 100%
+        );
+      }
+      .info-panel {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        max-width: 600px;
+        background-color: rgba(0, 0, 0, 0.7);
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+      .stage-indicator {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        font-size: 24px;
+        font-weight: bold;
+        color: #fff;
+        text-shadow: 0 0 10px #00ffff;
+      }
+      .controls {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        display: flex;
+        gap: 10px;
+      }
+      button {
+        background: rgba(0, 100, 150, 0.7);
+        color: white;
+        border: 1px solid #00ffff;
+        padding: 8px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s;
+        z-index: 200;
+        position: relative;
+      }
+      button:hover {
+        background: rgba(0, 150, 200, 0.9);
+        box-shadow: 0 0 10px #00ffff;
+      }
+      .scale-indicator {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        background-color: rgba(0, 0, 0, 0.7);
+        padding: 8px 12px;
+        border-radius: 5px;
+        font-size: 14px;
+        z-index: 200;
+      }
+      .pause-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 48px;
+        color: white;
+        z-index: 150;
+        display: none;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="universeCanvas"></canvas>
+    <div class="stage-indicator" id="stageIndicator">Квантовые флуктуации</div>
+    <div class="info-panel" id="infoPanel">
+      В квантовом вакууме постоянно рождаются и исчезают пары частиц и
+      античастиц.
+    </div>
+    <div class="controls">
+      <button id="restartBtn">С начала</button>
+      <button id="nextBtn">Далее</button>
+      <button id="pauseBtn">Пауза</button>
+    </div>
+    <div class="scale-indicator" id="scaleIndicator">Масштаб: 1:1</div>
+    <div class="pause-overlay" id="pauseOverlay">ПАУЗА</div>
+
+    <script>
+      const canvas = document.getElementById("universeCanvas");
+      const ctx = canvas.getContext("2d");
+      const stageIndicator = document.getElementById("stageIndicator");
+      const infoPanel = document.getElementById("infoPanel");
+      const restartBtn = document.getElementById("restartBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      const pauseBtn = document.getElementById("pauseBtn");
+      const scaleIndicator = document.getElementById("scaleIndicator");
+      const pauseOverlay = document.getElementById("pauseOverlay");
+
+      // Настройки canvas
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      // Состояния анимации
+      const STAGES = {
+        QUANTUM_FLUCTUATIONS: 0,
+        SINGULARITY: 1,
+        INFLATION: 2,
+        BIG_BANG: 3,
+        GALAXY_FORMATION: 4,
+        HUBBLE_VOLUME: 5,
+        MILKY_WAY_VIEW: 6,
+        SOLAR_SYSTEM: 7,
+      };
+
+      // Научные константы (в относительных единицах)
+      const HUBBLE_RADIUS = Math.min(canvas.width, canvas.height) * 0.8;
+      const MILKY_WAY_DIAMETER = HUBBLE_RADIUS * 0.2;
+      const SOLAR_SYSTEM_DISTANCE = MILKY_WAY_DIAMETER * 0.4;
+
+      // Параметры анимации
+      let currentStage = STAGES.QUANTUM_FLUCTUATIONS;
+      let cameraZoom = 1;
+      let cameraPos = { x: canvas.width / 2, y: canvas.height / 2 };
+      let targetZoom = 1;
+      let targetPos = { x: canvas.width / 2, y: canvas.height / 2 };
+      let particles = [];
+      let vacuumParticles = [];
+      let galaxies = [];
+      let lastTime = 0;
+      let stageStartTime = 0;
+      let isAnimating = true;
+      let isPaused = false;
+      let inflationFactor = 1;
+      let singularitySize = 1;
+      let milkyWay = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        size: MILKY_WAY_DIAMETER,
+        arms: [
+          { angle: 0, stars: [], spiral: [] },
+          { angle: Math.PI, stars: [], spiral: [] },
+        ],
+        rotation: 0,
+        alpha: 1, // Добавляем прозрачность для Млечного Пути
+      };
+      let solarSystem = {
+        x: milkyWay.x + SOLAR_SYSTEM_DISTANCE,
+        y: milkyWay.y,
+        planets: [
+          {
+            name: "Меркурий",
+            distance: 30,
+            size: 2.5,
+            color: "#b5b5b5",
+            angle: 0,
+            speed: 0.0479,
+          },
+          {
+            name: "Венера",
+            distance: 45,
+            size: 3.5,
+            color: "#e6c229",
+            angle: 1.5,
+            speed: 0.035,
+          },
+          {
+            name: "Земля",
+            distance: 60,
+            size: 3.7,
+            color: "#3498db",
+            angle: 3.0,
+            speed: 0.0298,
+          },
+          {
+            name: "Марс",
+            distance: 75,
+            size: 3.2,
+            color: "#e27b58",
+            angle: 4.5,
+            speed: 0.0241,
+          },
+          {
+            name: "Юпитер",
+            distance: 110,
+            size: 8,
+            color: "#c88b3a",
+            angle: 6.0,
+            speed: 0.0131,
+          },
+          {
+            name: "Сатурн",
+            distance: 140,
+            size: 7,
+            color: "#e4d191",
+            angle: 7.5,
+            speed: 0.0097,
+            rings: true,
+          },
+          {
+            name: "Уран",
+            distance: 170,
+            size: 5,
+            color: "#d1e7e7",
+            angle: 9.0,
+            speed: 0.0068,
+          },
+          {
+            name: "Нептун",
+            distance: 200,
+            size: 5,
+            color: "#5b5ddf",
+            angle: 10.5,
+            speed: 0.0054,
+          },
+        ],
+      };
+
+      // Инициализация Млечного Пути
+      function initMilkyWay() {
+        // Создаем звезды в рукавах
+        milkyWay.arms.forEach((arm) => {
+          arm.stars = [];
+          arm.spiral = [];
+
+          // Звезды
+          for (let i = 0; i < 800; i++) {
+            const distance =
+              Math.pow(Math.random(), 2) * milkyWay.size * 0.5 +
+              milkyWay.size * 0.1;
+            const angleOffset = (Math.random() - 0.5) * 0.8;
+            const armWidth = distance * 0.2;
+
+            arm.stars.push({
+              x:
+                milkyWay.x +
+                Math.cos(arm.angle + angleOffset) * distance +
+                (Math.random() - 0.5) * armWidth,
+              y:
+                milkyWay.y +
+                Math.sin(arm.angle + angleOffset) * distance +
+                (Math.random() - 0.5) * armWidth,
+              size: Math.random() * 2 + 0.5,
+              brightness: Math.random() * 0.7 + 0.3,
+              twinkle: Math.random() * Math.PI * 2,
+            });
+          }
+
+          // Спиральные линии для рукавов
+          for (let i = 0; i < 200; i++) {
+            const t = i / 200;
+            const distance = milkyWay.size * 0.1 + t * milkyWay.size * 0.5;
+            const angle = arm.angle + t * 4 * Math.PI;
+            arm.spiral.push({
+              x: milkyWay.x + Math.cos(angle) * distance,
+              y: milkyWay.y + Math.sin(angle) * distance,
+            });
+          }
+        });
+
+        // Добавляем балдж (центральную выпуклость)
+        for (let i = 0; i < 1500; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = Math.pow(Math.random(), 3) * milkyWay.size * 0.2;
+          milkyWay.arms[0].stars.push({
+            x: milkyWay.x + Math.cos(angle) * distance,
+            y: milkyWay.y + Math.sin(angle) * distance,
+            size: Math.random() * 2.5 + 1,
+            brightness: Math.random() * 0.5 + 0.5,
+            twinkle: Math.random() * Math.PI * 2,
+          });
+        }
+      }
+
+      // Создание квантовых флуктуаций
+      function createQuantumFluctuations() {
+        vacuumParticles = [];
+        for (let i = 0; i < 300; i++) {
+          vacuumParticles.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 4 + 2,
+            vx: (Math.random() - 0.5) * 0.5,
+            vy: (Math.random() - 0.5) * 0.5,
+            life: Math.random() * 150 + 100,
+            maxLife: Math.random() * 150 + 100,
+            isParticle: Math.random() > 0.5,
+            alpha: 0,
+            glow: Math.random() * 0.5 + 0.5,
+          });
+        }
+      }
+
+      // Инициализация
+      function init() {
+        currentStage = STAGES.QUANTUM_FLUCTUATIONS;
+        cameraZoom = 1;
+        cameraPos = { x: canvas.width / 2, y: canvas.height / 2 };
+        targetZoom = 1;
+        targetPos = { x: canvas.width / 2, y: canvas.height / 2 };
+        particles = [];
+        galaxies = [];
+        inflationFactor = 1;
+        singularitySize = 1;
+        milkyWay.alpha = 1; // Сбрасываем прозрачность
+        stageStartTime = Date.now();
+        isPaused = false;
+        pauseBtn.textContent = "Пауза";
+        pauseOverlay.style.display = "none";
+
+        milkyWay.x = canvas.width / 2;
+        milkyWay.y = canvas.height / 2;
+        solarSystem.x = milkyWay.x + SOLAR_SYSTEM_DISTANCE;
+        solarSystem.y = milkyWay.y;
+
+        createQuantumFluctuations();
+        initMilkyWay();
+        updateInfoText();
+        updateScaleIndicator();
+        animate();
+      }
+
+      // Обновление текста информации
+      function updateInfoText() {
+        const scaleText = getScaleText();
+
+        switch (currentStage) {
+          case STAGES.QUANTUM_FLUCTUATIONS:
+            stageIndicator.textContent = "Квантовые флуктуации";
+            infoPanel.textContent =
+              "В квантовом вакууме постоянно рождаются и исчезают пары частиц и античастиц. Эти флуктуации могут содержать огромные энергии в микроскопических масштабах.";
+            break;
+          case STAGES.SINGULARITY:
+            stageIndicator.textContent = "Квантовая сингулярность";
+            infoPanel.textContent = `Мощная флуктуация создает область с экстремальной плотностью энергии (масштаб: ${scaleText}). Это состояние с бесконечной плотностью могло стать началом Вселенной.`;
+            break;
+          case STAGES.INFLATION:
+            stageIndicator.textContent = "Космическая инфляция";
+            infoPanel.textContent = `За 10^-32 секунды Вселенная расширилась в 10^26 раз (масштаб: ${scaleText}). Квантовые флуктуации растянулись до космологических масштабов.`;
+            break;
+          case STAGES.BIG_BANG:
+            stageIndicator.textContent = "Большой Взрыв";
+            infoPanel.textContent = `Высвобождение энергии создало огненный шар с температурой ~10^32 K (масштаб: ${scaleText}). Формируются фундаментальные силы и первые частицы.`;
+            break;
+          case STAGES.GALAXY_FORMATION:
+            stageIndicator.textContent = "Образование галактик";
+            infoPanel.textContent = `Через 300-400 млн лет после Большого Взрыва (масштаб: ${scaleText}). Гравитация усиливает первичные неоднородности.`;
+            break;
+          case STAGES.HUBBLE_VOLUME:
+            stageIndicator.textContent = "Область Хаббла";
+            infoPanel.textContent = `Сфера диаметром ~93 млрд световых лет (масштаб: ${scaleText}). За её пределами объекты удаляются быстрее скорости света.`;
+            break;
+          case STAGES.MILKY_WAY_VIEW:
+            stageIndicator.textContent = "Млечный Путь";
+            infoPanel.textContent = `Наша галактика - спиральная с перемычкой, диаметр ~100 000 световых лет (масштаб: ${scaleText}). Мы находимся в рукаве Ориона.`;
+            break;
+          case STAGES.SOLAR_SYSTEM:
+            stageIndicator.textContent = "Солнечная система";
+            infoPanel.textContent = `Наша космическая обитель (масштаб: ${scaleText}). 8 планет вращаются вокруг Солнца по эллиптическим орбитам.`;
+            break;
+        }
+      }
+
+      function getScaleText() {
+        if (cameraZoom < 0.0001) return "1:10²⁶";
+        if (cameraZoom < 0.01) return "1:10²⁰";
+        if (cameraZoom < 0.1) return "1:10¹⁰";
+        if (cameraZoom < 1) return "1:10⁶";
+        if (cameraZoom < 10) return "1:10³";
+        if (cameraZoom < 100) return "1:10²";
+        return "1:1";
+      }
+
+      function updateScaleIndicator() {
+        scaleIndicator.textContent = `Масштаб: ${getScaleText()}`;
+      }
+
+      // Переход к следующей стадии
+      function nextStage() {
+        if (currentStage < STAGES.SOLAR_SYSTEM) {
+          currentStage++;
+          stageStartTime = Date.now();
+
+          // Устанавливаем цели для камеры
+          switch (currentStage) {
+            case STAGES.SINGULARITY:
+              targetZoom = 1;
+              singularitySize = 1;
+              break;
+            case STAGES.INFLATION:
+              targetZoom = 0.7;
+              break;
+            case STAGES.BIG_BANG:
+              targetZoom = 0.5;
+              createBigBangParticles();
+              break;
+            case STAGES.GALAXY_FORMATION:
+              targetZoom = 0.3;
+              createGalaxies();
+              break;
+            case STAGES.HUBBLE_VOLUME:
+              targetZoom = 0.2;
+              break;
+            case STAGES.MILKY_WAY_VIEW:
+              targetZoom = 1.2;
+              targetPos = { x: milkyWay.x, y: milkyWay.y };
+              break;
+            case STAGES.SOLAR_SYSTEM:
+              targetZoom = 20;
+              targetPos = { x: solarSystem.x, y: solarSystem.y };
+              break;
+          }
+
+          updateInfoText();
+        }
+      }
+
+      function createBigBangParticles() {
+        particles = [];
+        for (let i = 0; i < 1200; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 8 + 2;
+          const hue = Math.random() * 60 + 10;
+          particles.push({
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            size: Math.random() * 6 + 3,
+            life: Math.random() * 200 + 150,
+            color: `hsla(${hue}, 100%, ${Math.random() * 30 + 50}%, 1)`,
+            trail: [],
+          });
+        }
+      }
+
+      function createGalaxies() {
+        galaxies = [];
+        for (let i = 0; i < 150; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = Math.pow(Math.random(), 2) * HUBBLE_RADIUS * 0.9;
+          galaxies.push({
+            x: canvas.width / 2 + Math.cos(angle) * distance,
+            y: canvas.height / 2 + Math.sin(angle) * distance,
+            size: Math.random() * 20 + 15,
+            stars: Math.floor(Math.random() * 80) + 30,
+            color: `hsl(${Math.random() * 60 + 200}, 70%, 50%)`,
+            rotation: Math.random() * Math.PI * 2,
+            speed: (Math.random() * 0.5 + 0.5) * 0.002,
+          });
+        }
+      }
+
+      // Применение камеры
+      function applyCamera() {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        // Плавный градиентный фон
+        const gradient = ctx.createRadialGradient(
+          canvas.width / 2,
+          canvas.height / 2,
+          0,
+          canvas.width / 2,
+          canvas.height / 2,
+          Math.max(canvas.width, canvas.height) / 2
+        );
+        gradient.addColorStop(0, "#0a0e24");
+        gradient.addColorStop(1, "#000000");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Плавное приближение камеры
+        if (!isPaused) {
+          cameraZoom += (targetZoom - cameraZoom) * 0.01;
+          cameraPos.x += (targetPos.x - cameraPos.x) * 0.01;
+          cameraPos.y += (targetPos.y - cameraPos.y) * 0.01;
+
+          // Управление размером сингулярности
+          if (currentStage === STAGES.INFLATION) {
+            singularitySize = Math.min(
+              400,
+              1 + (Date.now() - stageStartTime) / 10
+            );
+          }
+
+          // Управление прозрачностью Млечного Пути при приближении к Солнечной системе
+          if (currentStage === STAGES.SOLAR_SYSTEM) {
+            // Плавное уменьшение прозрачности от 1 до 0 при увеличении масштаба от 1.2 до 20
+            milkyWay.alpha = Math.max(0, 1 - (cameraZoom - 1.2) / (20 - 1.2));
+          } else {
+            milkyWay.alpha = 1;
+          }
+        }
+
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.scale(cameraZoom, cameraZoom);
+        ctx.translate(-cameraPos.x, -cameraPos.y);
+
+        updateScaleIndicator();
+      }
+
+      // Рисование области Хаббла
+      function drawHubbleVolume() {
+        ctx.strokeStyle = "rgba(150, 200, 255, 0.6)";
+        ctx.lineWidth = 4 / cameraZoom;
+        ctx.setLineDash([20 / cameraZoom, 15 / cameraZoom]);
+        ctx.beginPath();
+        ctx.arc(
+          canvas.width / 2,
+          canvas.height / 2,
+          HUBBLE_RADIUS,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.fillStyle = "rgba(200, 230, 255, 0.9)";
+        ctx.font = `${Math.max(14, 30 / cameraZoom)}px Arial`;
+        ctx.textAlign = "center";
+        ctx.fillText(
+          "Область Хаббла",
+          canvas.width / 2,
+          canvas.height / 2 - HUBBLE_RADIUS - 50 / cameraZoom
+        );
+      }
+
+      // Рисование Млечного Пути
+      function drawMilkyWay() {
+        // Если прозрачность 0, не рисуем вообще
+        if (milkyWay.alpha <= 0) return;
+
+        ctx.globalAlpha = milkyWay.alpha;
+
+        // Балдж (центральная выпуклость)
+        const bulgeGradient = ctx.createRadialGradient(
+          milkyWay.x,
+          milkyWay.y,
+          0,
+          milkyWay.x,
+          milkyWay.y,
+          milkyWay.size * 0.25
+        );
+        bulgeGradient.addColorStop(0, "rgba(255, 230, 150, 0.9)");
+        bulgeGradient.addColorStop(0.7, "rgba(255, 200, 100, 0.4)");
+        bulgeGradient.addColorStop(1, "rgba(255, 180, 80, 0.1)");
+
+        ctx.fillStyle = bulgeGradient;
+        ctx.beginPath();
+        ctx.arc(milkyWay.x, milkyWay.y, milkyWay.size * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Спиральные рукава (звезды)
+        const time = Date.now() * 0.001;
+        milkyWay.arms.forEach((arm) => {
+          arm.stars.forEach((star) => {
+            const twinkleFactor = 0.8 + 0.2 * Math.sin(time * 3 + star.twinkle);
+            ctx.globalAlpha = star.brightness * twinkleFactor * milkyWay.alpha;
+
+            // Эффект свечения для звезд
+            const glowGradient = ctx.createRadialGradient(
+              star.x,
+              star.y,
+              0,
+              star.x,
+              star.y,
+              (star.size * 2) / cameraZoom
+            );
+            glowGradient.addColorStop(
+              0,
+              `rgba(255, 255, 255, ${star.brightness})`
+            );
+            glowGradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+            ctx.fillStyle = glowGradient;
+            ctx.beginPath();
+            ctx.arc(
+              star.x,
+              star.y,
+              (star.size * 2) / cameraZoom,
+              0,
+              Math.PI * 2
+            );
+            ctx.fill();
+
+            // Яркое ядро звезды
+            ctx.globalAlpha = star.brightness * milkyWay.alpha;
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.arc(star.x, star.y, star.size / cameraZoom, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        });
+
+        // Спиральные рукава (линии)
+        ctx.strokeStyle = "rgba(180, 220, 255, 0.3)";
+        ctx.lineWidth = 8 / cameraZoom;
+        milkyWay.arms.forEach((arm) => {
+          ctx.beginPath();
+          arm.spiral.forEach((point, i) => {
+            const adjustedX =
+              milkyWay.x +
+              (point.x - milkyWay.x) * Math.cos(milkyWay.rotation) -
+              (point.y - milkyWay.y) * Math.sin(milkyWay.rotation);
+            const adjustedY =
+              milkyWay.y +
+              (point.x - milkyWay.x) * Math.sin(milkyWay.rotation) +
+              (point.y - milkyWay.y) * Math.cos(milkyWay.rotation);
+
+            if (i === 0) {
+              ctx.moveTo(adjustedX, adjustedY);
+            } else {
+              ctx.lineTo(adjustedX, adjustedY);
+            }
+          });
+          ctx.stroke();
+        });
+
+        // Вращение галактики
+        if (!isPaused) {
+          milkyWay.rotation += 0.0008;
+        }
+        ctx.globalAlpha = 1;
+      }
+
+      // Рисование Солнечной системы
+      function drawSolarSystem() {
+        // Солнце
+        const sunGradient = ctx.createRadialGradient(
+          solarSystem.x,
+          solarSystem.y,
+          0,
+          solarSystem.x,
+          solarSystem.y,
+          30 / cameraZoom
+        );
+        sunGradient.addColorStop(0, "#ffff00");
+        sunGradient.addColorStop(0.7, "#ffcc00");
+        sunGradient.addColorStop(1, "#ff6600");
+
+        // Эффект свечения Солнца
+        ctx.globalAlpha = 0.4 * (1 - milkyWay.alpha * 0.5);
+        ctx.fillStyle = "rgba(255, 200, 100, 0.3)";
+        ctx.beginPath();
+        ctx.arc(solarSystem.x, solarSystem.y, 80 / cameraZoom, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = sunGradient;
+        ctx.beginPath();
+        ctx.arc(solarSystem.x, solarSystem.y, 30 / cameraZoom, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Планеты
+        solarSystem.planets.forEach((planet) => {
+          if (!isPaused) {
+            planet.angle += planet.speed * 0.3;
+          }
+
+          // Орбита
+          ctx.strokeStyle = `rgba(255, 255, 255, ${
+            0.1 + 0.2 * (1 - milkyWay.alpha)
+          })`;
+          ctx.lineWidth = 1.5 / cameraZoom;
+          ctx.beginPath();
+          ctx.arc(
+            solarSystem.x,
+            solarSystem.y,
+            planet.distance / cameraZoom,
+            0,
+            Math.PI * 2
+          );
+          ctx.stroke();
+
+          // Планета
+          const planetX =
+            solarSystem.x +
+            (Math.cos(planet.angle) * planet.distance) / cameraZoom;
+          const planetY =
+            solarSystem.y +
+            (Math.sin(planet.angle) * planet.distance) / cameraZoom;
+
+          // Эффект свечения планет
+          ctx.globalAlpha = 0.3 * (1 - milkyWay.alpha * 0.7);
+          ctx.fillStyle = planet.color;
+          ctx.beginPath();
+          ctx.arc(
+            planetX,
+            planetY,
+            (planet.size * 1.5) / cameraZoom,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+
+          // Сама планета
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = planet.color;
+          ctx.beginPath();
+          ctx.arc(planetX, planetY, planet.size / cameraZoom, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Кольца Сатурна
+          if (planet.rings && cameraZoom > 15) {
+            ctx.save();
+            ctx.translate(planetX, planetY);
+            ctx.rotate(planet.angle * 3);
+
+            ctx.strokeStyle = `rgba(210, 180, 140, ${
+              0.5 + 0.3 * (1 - milkyWay.alpha)
+            })`;
+            ctx.lineWidth = 3 / cameraZoom;
+            ctx.beginPath();
+            ctx.ellipse(
+              0,
+              0,
+              (planet.size * 1.8) / cameraZoom,
+              (planet.size * 0.8) / cameraZoom,
+              0,
+              0,
+              Math.PI * 2
+            );
+            ctx.stroke();
+
+            ctx.strokeStyle = `rgba(210, 180, 140, ${
+              0.3 + 0.2 * (1 - milkyWay.alpha)
+            })`;
+            ctx.lineWidth = 5 / cameraZoom;
+            ctx.beginPath();
+            ctx.ellipse(
+              0,
+              0,
+              (planet.size * 2.2) / cameraZoom,
+              (planet.size * 1.0) / cameraZoom,
+              0,
+              0,
+              Math.PI * 2
+            );
+            ctx.stroke();
+
+            ctx.restore();
+          }
+
+          // Подписи планет
+          if (cameraZoom > 15) {
+            ctx.fillStyle = planet.color;
+            ctx.font = `${20 / cameraZoom}px Arial`;
+            ctx.textAlign = "center";
+            ctx.fillText(planet.name, planetX, planetY + 30 / cameraZoom);
+          }
+        });
+      }
+
+      // Основной цикл анимации
+      function animate() {
+        if (!isAnimating) return;
+
+        requestAnimationFrame(animate);
+        const currentTime = Date.now();
+        const deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
+
+        applyCamera();
+
+        // Стадия 0: Квантовые флуктуации
+        if (currentStage === STAGES.QUANTUM_FLUCTUATIONS) {
+          // Обновление частиц вакуума
+          vacuumParticles.forEach((p) => {
+            if (!isPaused) {
+              p.x += p.vx;
+              p.y += p.vy;
+              p.life--;
+              p.alpha = Math.min(1, p.alpha + 0.01);
+              p.glow = 0.5 + 0.5 * Math.sin(Date.now() * 0.005 + p.x * 0.1);
+
+              if (p.life <= 0) {
+                p.x = Math.random() * canvas.width;
+                p.y = Math.random() * canvas.height;
+                p.life = Math.random() * 150 + 100;
+                p.alpha = 0;
+              }
+            }
+
+            // Рисование свечения
+            ctx.globalAlpha = p.alpha * (p.life / p.maxLife) * p.glow * 0.3;
+            ctx.fillStyle = p.isParticle ? "#00ffff" : "#ff00ff";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size * 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Рисование частицы
+            ctx.globalAlpha = p.alpha * (p.life / p.maxLife);
+            ctx.fillStyle = p.isParticle ? "#00ffff" : "#ff00ff";
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          // Автопереход через 7 секунд
+          if (currentTime - stageStartTime > 7000 && !isPaused) {
+            nextStage();
+          }
+        }
+
+        // Стадия 1: Сингулярность
+        else if (currentStage === STAGES.SINGULARITY) {
+          // Белая точка сингулярности с мерцанием
+          const pulse = 0.9 + 0.1 * Math.sin(Date.now() * 0.005);
+          ctx.fillStyle = `rgba(255, 255, 255, ${pulse})`;
+          ctx.beginPath();
+          ctx.arc(canvas.width / 2, canvas.height / 2, 8, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Автопереход через 5 секунд
+          if (currentTime - stageStartTime > 5000 && !isPaused) {
+            nextStage();
+          }
+        }
+
+        // Стадия 2: Инфляция
+        else if (currentStage === STAGES.INFLATION) {
+          // Расширяющаяся сингулярность с эффектом
+          const gradient = ctx.createRadialGradient(
+            canvas.width / 2,
+            canvas.height / 2,
+            0,
+            canvas.width / 2,
+            canvas.height / 2,
+            singularitySize
+          );
+          gradient.addColorStop(0, "rgba(255, 255, 200, 0.9)");
+          gradient.addColorStop(0.3, "rgba(255, 200, 100, 0.7)");
+          gradient.addColorStop(0.7, "rgba(255, 100, 50, 0.4)");
+          gradient.addColorStop(1, "rgba(255, 50, 0, 0)");
+
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          ctx.arc(
+            canvas.width / 2,
+            canvas.height / 2,
+            singularitySize,
+            0,
+            Math.PI * 2
+          );
+          ctx.fill();
+
+          // Волны расширения
+          if (singularitySize > 50) {
+            for (let i = 1; i <= 3; i++) {
+              const waveSize = singularitySize - i * 30;
+              if (waveSize > 0) {
+                ctx.strokeStyle = `rgba(255, 200, 100, ${0.3 - i * 0.1})`;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(
+                  canvas.width / 2,
+                  canvas.height / 2,
+                  waveSize,
+                  0,
+                  Math.PI * 2
+                );
+                ctx.stroke();
+              }
+            }
+          }
+
+          // Автопереход через 5 секунд
+          if (currentTime - stageStartTime > 5000 && !isPaused) {
+            nextStage();
+          }
+        }
+
+        // Стадия 3: Большой Взрыв
+        else if (currentStage === STAGES.BIG_BANG) {
+          // Частицы взрыва
+          particles.forEach((p) => {
+            if (!isPaused) {
+              p.x += p.vx;
+              p.y += p.vy;
+              p.life--;
+
+              // Добавляем точку в трек
+              if (p.trail.length < 10) {
+                p.trail.push({ x: p.x, y: p.y });
+              } else {
+                p.trail.shift();
+                p.trail.push({ x: p.x, y: p.y });
+              }
+            }
+
+            // Рисуем трек
+            if (p.trail.length > 1) {
+              ctx.strokeStyle = p.color
+                .replace(")", `, ${Math.min(1, p.life / 150) * 0.3})`)
+                .replace("hsla", "rgba");
+              ctx.lineWidth = p.size / 3;
+              ctx.beginPath();
+              ctx.moveTo(p.trail[0].x, p.trail[0].y);
+              for (let i = 1; i < p.trail.length; i++) {
+                ctx.lineTo(p.trail[i].x, p.trail[i].y);
+              }
+              ctx.stroke();
+            }
+
+            // Рисуем частицу
+            ctx.globalAlpha = Math.min(1, p.life / 150);
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          // Удаляем умершие частицы
+          particles = particles.filter((p) => p.life > 0);
+
+          // Добавляем новые частицы для эффекта непрерывности
+          if (!isPaused && Math.random() < 0.1 && particles.length < 1500) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 8 + 2;
+            const hue = Math.random() * 60 + 10;
+            particles.push({
+              x: canvas.width / 2,
+              y: canvas.height / 2,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed,
+              size: Math.random() * 6 + 3,
+              life: Math.random() * 200 + 150,
+              color: `hsla(${hue}, 100%, ${Math.random() * 30 + 50}%, 1)`,
+              trail: [],
+            });
+          }
+
+          ctx.globalAlpha = 1;
+
+          // Автопереход через 5 секунд
+          if (currentTime - stageStartTime > 5000 && !isPaused) {
+            nextStage();
+          }
+        }
+
+        // Стадия 4: Образование галактик
+        else if (currentStage === STAGES.GALAXY_FORMATION) {
+          // Фоновые галактики
+          galaxies.forEach((galaxy) => {
+            if (!isPaused) {
+              galaxy.rotation += galaxy.speed;
+            }
+
+            ctx.save();
+            ctx.translate(galaxy.x, galaxy.y);
+            ctx.rotate(galaxy.rotation);
+
+            // Ядро галактики с градиентом
+            const coreGradient = ctx.createRadialGradient(
+              0,
+              0,
+              0,
+              0,
+              0,
+              galaxy.size * 0.4
+            );
+            coreGradient.addColorStop(0, galaxy.color);
+            coreGradient.addColorStop(1, "rgba(0, 0, 0, 0)");
+
+            ctx.fillStyle = coreGradient;
+            ctx.beginPath();
+            ctx.arc(0, 0, galaxy.size * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Звезды в галактике
+            ctx.globalAlpha = 0.8;
+            for (let i = 0; i < galaxy.stars; i++) {
+              const angle = Math.random() * Math.PI * 2;
+              const distance = Math.pow(Math.random(), 3) * galaxy.size;
+              const size = Math.random() * 2 + 0.5;
+
+              // Эффект свечения
+              ctx.fillStyle = `rgba(255, 255, 255, ${
+                Math.random() * 0.5 + 0.3
+              })`;
+              ctx.beginPath();
+              ctx.arc(
+                Math.cos(angle) * distance,
+                Math.sin(angle) * distance,
+                size * 1.5,
+                0,
+                Math.PI * 2
+              );
+              ctx.fill();
+
+              // Звезда
+              ctx.fillStyle = "white";
+              ctx.beginPath();
+              ctx.arc(
+                Math.cos(angle) * distance,
+                Math.sin(angle) * distance,
+                size,
+                0,
+                Math.PI * 2
+              );
+              ctx.fill();
+            }
+
+            ctx.restore();
+          });
+
+          // Автопереход через 5 секунд
+          if (currentTime - stageStartTime > 5000 && !isPaused) {
+            nextStage();
+          }
+        }
+
+        // Стадия 5: Область Хаббла
+        else if (currentStage === STAGES.HUBBLE_VOLUME) {
+          // Фоновые галактики
+          galaxies.forEach((galaxy) => {
+            ctx.globalAlpha = 0.2;
+            ctx.fillStyle = "rgba(200, 220, 255, 0.2)";
+            ctx.beginPath();
+            ctx.arc(galaxy.x, galaxy.y, galaxy.size * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.globalAlpha = 0.1;
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.arc(galaxy.x, galaxy.y, 5, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          drawHubbleVolume();
+
+          // Автопереход через 5 секунд
+          if (currentTime - stageStartTime > 5000 && !isPaused) {
+            nextStage();
+          }
+        }
+
+        // Стадия 6: Млечный Путь
+        else if (currentStage === STAGES.MILKY_WAY_VIEW) {
+          drawMilkyWay();
+
+          // Автопереход через 5 секунд
+          if (currentTime - stageStartTime > 5000 && !isPaused) {
+            nextStage();
+          }
+        }
+
+        // Стадия 7: Солнечная система
+        else if (currentStage === STAGES.SOLAR_SYSTEM) {
+          // Рисуем Млечный Путь с учетом прозрачности
+          drawMilkyWay();
+          drawSolarSystem();
+        }
+
+        // Отображение паузы
+        pauseOverlay.style.display = isPaused ? "flex" : "none";
+      }
+
+      // Обработчики событий
+      restartBtn.addEventListener("click", init);
+      nextBtn.addEventListener("click", nextStage);
+      pauseBtn.addEventListener("click", function () {
+        isPaused = !isPaused;
+        pauseBtn.textContent = isPaused ? "Продолжить" : "Пауза";
+        pauseOverlay.style.display = isPaused ? "flex" : "none";
+      });
+
+      window.addEventListener("resize", () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        init();
+      });
+
+      // Запуск
+      init();
+    </script>
+  </body>
+</html>
