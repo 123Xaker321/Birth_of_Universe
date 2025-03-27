@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+  <link rel="shortcut icon" href="https://cdn-icons-png.flaticon.com/512/3919/3919942.png" type="image/x-icon">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Эволюция Вселенной</title>
@@ -191,7 +192,7 @@
         // Научные константы (в относительных единицах)
         const HUBBLE_RADIUS = Math.min(canvas.width, canvas.height) * 0.4;
         const MILKY_WAY_DIAMETER = HUBBLE_RADIUS * 0.25;
-        const SOLAR_SYSTEM_DISTANCE = MILKY_WAY_DIAMETER * 0.4;
+        const SOLAR_SYSTEM_DISTANCE = MILKY_WAY_DIAMETER * 0.3; // Уменьшили расстояние до 30% радиуса
 
         // Параметры анимации
         let currentStage = STAGES.QUANTUM_FLUCTUATIONS;
@@ -286,9 +287,10 @@
                 }
             });
 
-            for (let i = 0; i < (isMobile ? 600 : 1200); i++) {
+            // Добавляем больше звезд в центральную перемычку
+            for (let i = 0; i < (isMobile ? 800 : 1600); i++) {
                 const angle = random() * TWO_PI;
-                const distance = pow(random(), 3) * milkyWay.size * 0.2;
+                const distance = pow(random(), 3) * milkyWay.size * 0.2; // Уменьшенная перемычка
                 milkyWay.arms[0].stars.push({
                     x: milkyWay.x + cos(angle) * distance,
                     y: milkyWay.y + sin(angle) * distance,
@@ -456,7 +458,7 @@
                         targetPos = { x: milkyWay.x, y: milkyWay.y };
                         break;
                     case STAGES.SOLAR_SYSTEM:
-                        targetZoom = 40;
+                        targetZoom = 60; // Увеличили зум до 60
                         targetPos = { x: milkyWay.x + SOLAR_SYSTEM_DISTANCE, y: milkyWay.y };
                         break;
                 }
@@ -644,8 +646,8 @@
                 }
                 
                 if (currentStage === STAGES.SOLAR_SYSTEM) {
-                    milkyWay.alpha = max(0, 1 - (cameraZoom - 20) / 20);
-                    solarSystem.scale = min(1, (cameraZoom - 20) / 10);
+                    milkyWay.alpha = max(0, 1 - (cameraZoom - 40) / 20); // Начинаем скрывать галактику при зуме >40
+                    solarSystem.scale = min(1, (cameraZoom - 40) / 20); // Плавное появление солнечной системы
                     solarSystem.visible = solarSystem.scale > 0;
                 } else {
                     milkyWay.alpha = 1;
@@ -667,9 +669,10 @@
             
             ctx.globalAlpha = milkyWay.alpha;
             
+            // Центральная перемычка (уменьшенная до 20% диаметра)
             const bulgeGradient = ctx.createRadialGradient(
                 milkyWay.x, milkyWay.y, 0,
-                milkyWay.x, milkyWay.y, milkyWay.size * 0.3
+                milkyWay.x, milkyWay.y, milkyWay.size * 0.2
             );
             bulgeGradient.addColorStop(0, 'rgba(255, 230, 150, 0.9)');
             bulgeGradient.addColorStop(0.7, 'rgba(255, 200, 100, 0.4)');
@@ -677,9 +680,10 @@
             
             ctx.fillStyle = bulgeGradient;
             ctx.beginPath();
-            ctx.arc(milkyWay.x, milkyWay.y, milkyWay.size * 0.3, 0, TWO_PI);
+            ctx.arc(milkyWay.x, milkyWay.y, milkyWay.size * 0.2, 0, TWO_PI);
             ctx.fill();
             
+            // Звезды в рукавах
             const time = Date.now() * 0.001;
             milkyWay.arms.forEach(arm => {
                 const step = isMobile ? 3 : 2;
@@ -695,6 +699,7 @@
                 }
             });
             
+            // Спиральные рукава
             ctx.strokeStyle = 'rgba(180, 220, 255, 0.3)';
             ctx.lineWidth = 10 / cameraZoom;
             milkyWay.arms.forEach(arm => {
